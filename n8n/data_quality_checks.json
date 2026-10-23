@@ -1,0 +1,585 @@
+{
+  "name": "Data Quality Checks - thelook_ecommerce",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "459cc891-b770-4137-8d95-54923bfc3f4e",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e2138361-c8a0-43c6-8e81-dc33296444ec",
+      "name": "Start checks",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        240,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "358f7e19-1fbd-4086-afd3-1e102d9ab4ee",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "portafolio-bi-512400"
+        },
+        "sqlQuery": "SELECT\n  'orders_without_items' AS check_name,\n  COUNT(*) AS problem_rows\nFROM `bigquery-public-data.thelook_ecommerce.orders` o\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM `bigquery-public-data.thelook_ecommerce.order_items` oi\n  WHERE oi.order_id = o.order_id\n)",
+        "options": {
+          "maximumBytesBilled": "104857600",
+          "useLegacySql": false
+        }
+      },
+      "id": "48333a09-717c-41f0-b08d-bcd3f8870efb",
+      "name": "01 Orders without items",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        0
+      ],
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "BigQuery - portafolio-bi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "numberInputs": 8
+      },
+      "id": "acc15947-e312-4b52-80bd-103e4d87175f",
+      "name": "Combine results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        832,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "portafolio-bi-512400"
+        },
+        "sqlQuery": "SELECT\n  'duplicate_orders' AS check_name,\n  COUNT(*) - COUNT(DISTINCT order_id) AS problem_rows\nFROM `bigquery-public-data.thelook_ecommerce.orders`\nWHERE order_id IS NOT NULL",
+        "options": {
+          "maximumBytesBilled": "104857600",
+          "useLegacySql": false
+        }
+      },
+      "id": "049b1346-759b-4d41-88e7-a4d0b12d7030",
+      "name": "02 Duplicate orders",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        128
+      ],
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "BigQuery - portafolio-bi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "portafolio-bi-512400"
+        },
+        "sqlQuery": "SELECT\n  'items_with_missing_product' AS check_name,\n  COUNT(*) AS problem_rows\nFROM `bigquery-public-data.thelook_ecommerce.order_items` oi\nLEFT JOIN `bigquery-public-data.thelook_ecommerce.products` p\n  ON p.id = oi.product_id\nWHERE p.id IS NULL\n  AND oi.product_id IS NOT NULL",
+        "options": {
+          "maximumBytesBilled": "104857600",
+          "useLegacySql": false
+        }
+      },
+      "id": "176c3485-16ab-4695-a614-31a36dbf5f6f",
+      "name": "03 Items with missing product",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        240
+      ],
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "BigQuery - portafolio-bi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "portafolio-bi-512400"
+        },
+        "sqlQuery": "SELECT\n  'impossible_dates' AS check_name,\n  COUNT(*) AS problem_rows\nFROM `bigquery-public-data.thelook_ecommerce.orders`\nWHERE shipped_at   < created_at\n   OR delivered_at < shipped_at\n   OR returned_at  < delivered_at",
+        "options": {
+          "maximumBytesBilled": "104857600",
+          "useLegacySql": false
+        }
+      },
+      "id": "ba78f6ca-1911-438d-9303-98c5e75f7a22",
+      "name": "04 Impossible dates",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        368
+      ],
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "BigQuery - portafolio-bi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "portafolio-bi-512400"
+        },
+        "sqlQuery": "SELECT\n  'nulls_in_key_fields' AS check_name,\n  (SELECT COUNT(*)\n     FROM `bigquery-public-data.thelook_ecommerce.orders`\n    WHERE order_id IS NULL OR user_id IS NULL OR status IS NULL OR created_at IS NULL)\n  +\n  (SELECT COUNT(*)\n     FROM `bigquery-public-data.thelook_ecommerce.order_items`\n    WHERE id IS NULL OR order_id IS NULL OR product_id IS NULL OR sale_price IS NULL)\n  AS problem_rows",
+        "options": {
+          "maximumBytesBilled": "104857600",
+          "useLegacySql": false
+        }
+      },
+      "id": "030102c0-9a49-47c9-9df7-aed3d87924df",
+      "name": "05 Nulls in key fields",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        480
+      ],
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "BigQuery - portafolio-bi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "portafolio-bi-512400"
+        },
+        "sqlQuery": "SELECT\n  'item_count_mismatch' AS check_name,\n  COUNT(*) AS problem_rows\nFROM `bigquery-public-data.thelook_ecommerce.orders` o\nLEFT JOIN (\n  SELECT order_id, COUNT(*) AS actual_items\n  FROM `bigquery-public-data.thelook_ecommerce.order_items`\n  GROUP BY order_id\n) oi ON oi.order_id = o.order_id\nWHERE o.num_of_item IS DISTINCT FROM COALESCE(oi.actual_items, 0)",
+        "options": {
+          "maximumBytesBilled": "104857600",
+          "useLegacySql": false
+        }
+      },
+      "id": "b21b5ef1-e26b-43ae-ad45-34bd2b3f61d8",
+      "name": "06 Item count mismatch",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        608
+      ],
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "BigQuery - portafolio-bi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "portafolio-bi-512400"
+        },
+        "sqlQuery": "SELECT\n  'orders_with_missing_user' AS check_name,\n  COUNT(*) AS problem_rows\nFROM `bigquery-public-data.thelook_ecommerce.orders` o\nWHERE o.user_id IS NOT NULL\n  AND NOT EXISTS (\n    SELECT 1\n    FROM `bigquery-public-data.thelook_ecommerce.users` u\n    WHERE u.id = o.user_id\n  )",
+        "options": {
+          "maximumBytesBilled": "104857600",
+          "useLegacySql": false
+        }
+      },
+      "id": "ab612c79-d2c1-4526-aeed-6c44076842fa",
+      "name": "07 Orders with missing user",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        720
+      ],
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "BigQuery - portafolio-bi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "portafolio-bi-512400"
+        },
+        "sqlQuery": "SELECT 'forced_test_failure' AS check_name, 1 AS problem_rows",
+        "options": {
+          "maximumBytesBilled": "104857600",
+          "useLegacySql": false
+        }
+      },
+      "id": "f754e6d8-3569-468a-938d-f64fc8103aed",
+      "name": "TEST - Forced failure",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        880
+      ],
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "BigQuery - portafolio-bi"
+        }
+      },
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const QUERY_NODES = ['01 Orders without items', '02 Duplicate orders', '03 Items with missing product', '04 Impossible dates', '05 Nulls in key fields', '06 Item count mismatch', '07 Orders with missing user'];\nconst TEST_NODE = 'TEST - Forced failure';\nconst esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nfunction readNode(name) {\n  try { return $(name).all(); } catch (e) { return null; }\n}\n\nconst results = [];\nfor (const name of QUERY_NODES.concat([TEST_NODE])) {\n  const isTest = name === TEST_NODE;\n  const items = readNode(name);\n  if (!items || items.length === 0) {\n    if (!isTest) results.push({ check_name: 'query_error: ' + name, problem_rows: null, error: 'The node did not return any result.' });\n    continue;\n  }\n  for (const item of items) {\n    const j = item.json || {};\n    if (j.error) {\n      results.push({ check_name: 'query_error: ' + name, problem_rows: null, error: String(j.error.message || j.error) });\n      continue;\n    }\n    if (j.check_name === undefined) {\n      if (!isTest) results.push({ check_name: 'query_error: ' + name, problem_rows: null, error: 'The result has no check_name column.' });\n      continue;\n    }\n    const raw = j.problem_rows;\n    const rows = (raw === null || raw === undefined || raw === '') ? NaN : Number(raw);\n    if (!Number.isFinite(rows)) {\n      results.push({ check_name: 'query_error: ' + name, problem_rows: null, error: 'problem_rows is not a number: ' + raw });\n      continue;\n    }\n    results.push({ check_name: String(j.check_name), problem_rows: rows });\n  }\n}\n\nconst failed = results.filter((r) => r.problem_rows === null || r.problem_rows > 0);\nconst runAt = $now.setZone('America/La_Paz').toFormat('yyyy-MM-dd HH:mm:ss');\n\nconst cell = 'style=border:1px solid #ccc;padding:6px 10px;text-align:left';\nconst rowsHtml = failed.map((r) => '<tr><td ' + cell + '>' + esc(r.check_name) + '</td><td ' + cell + '>' + (r.problem_rows === null ? 'error' : r.problem_rows) + '</td></tr>').join('');\nconst tableHtml = '<table style=border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px>' +\n  '<tr><th ' + cell + '>check_name</th><th ' + cell + '>problem_rows</th></tr>' + rowsHtml + '</table>';\nconst errors = failed.filter((r) => r.error);\nconst errorsHtml = errors.length === 0 ? '' :\n  '<p><b>Query errors:</b></p><ul>' + errors.map((r) => '<li><b>' + esc(r.check_name) + '</b>: ' + esc(r.error) + '</li>').join('') + '</ul>';\n\nconst emailHtml =\n  '<p>' + failed.length + ' data quality check(s) failed on <b>bigquery-public-data.thelook_ecommerce</b>.</p>' +\n  tableHtml + errorsHtml +\n  '<p style=color:#666;font-size:12px>Run at: ' + runAt + ' (America/La_Paz)<br>Workflow: Data Quality Checks - thelook_ecommerce</p>';\n\nreturn [{ json: { failed_count: failed.length, checks_run: results.length, failed_checks: failed, email_html: emailHtml, run_at: runAt } }];\n"
+      },
+      "id": "d5c143a3-62c8-44db-976a-2aac867e511c",
+      "name": "Summarize failures",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.failed_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d9ef08b7-34a8-4437-8d11-5b8bec7613de",
+      "name": "Any check failed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1312,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "alerts@example.com",
+        "subject": "=[Data Quality] {{ $json.failed_count }} check(s) failed - thelook_ecommerce",
+        "message": "={{ $json.email_html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "a189f31b-7b7e-4823-91a9-6382de2a122e",
+      "name": "Send alert email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1568,
+        320
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Gmail - portafolio-bi"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "064fbe11-a098-45d5-8136-a926c1380cfa",
+      "name": "All checks passed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        544
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Start checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start checks": {
+      "main": [
+        [
+          {
+            "node": "01 Orders without items",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "02 Duplicate orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "03 Items with missing product",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "04 Impossible dates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "05 Nulls in key fields",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "06 Item count mismatch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "07 Orders with missing user",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "TEST - Forced failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Start checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "01 Orders without items": {
+      "main": [
+        [
+          {
+            "node": "Combine results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine results": {
+      "main": [
+        [
+          {
+            "node": "Summarize failures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 Duplicate orders": {
+      "main": [
+        [
+          {
+            "node": "Combine results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "03 Items with missing product": {
+      "main": [
+        [
+          {
+            "node": "Combine results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "04 Impossible dates": {
+      "main": [
+        [
+          {
+            "node": "Combine results",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "05 Nulls in key fields": {
+      "main": [
+        [
+          {
+            "node": "Combine results",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "06 Item count mismatch": {
+      "main": [
+        [
+          {
+            "node": "Combine results",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "07 Orders with missing user": {
+      "main": [
+        [
+          {
+            "node": "Combine results",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "TEST - Forced failure": {
+      "main": [
+        [
+          {
+            "node": "Combine results",
+            "type": "main",
+            "index": 7
+          }
+        ]
+      ]
+    },
+    "Summarize failures": {
+      "main": [
+        [
+          {
+            "node": "Any check failed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any check failed?": {
+      "main": [
+        [
+          {
+            "node": "Send alert email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "All checks passed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "America/La_Paz",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "tags": []
+}

@@ -1,0 +1,27 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Credentials and keys
+*credentials*.json
+*service-account*.json
+*-key.json
+*.key.json
+*.pem
+*.p12
+*.key
+credentials/
+secrets/
+
+# Google OAuth client secrets and service account keys for this project
+client_secret*.json
+portafolio-bi-*.json
+
+# Claude Code
+.claude/
+
+# System / editor
+.DS_Store
+Thumbs.db
+.vscode/
